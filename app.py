@@ -62,13 +62,13 @@ show_data = st.sidebar.button("Show Data", type="primary")
 if show_data or 'clicked' in st.session_state:
     st.session_state['clicked'] = True
     
-    # --- गणना (Calculations) ---
-    total_schools = filtered_df['school'].nunique()
+    # --- 🎯 गणना दुरुस्ती (Calculations Fixed with UDISE) ---
+    total_schools = filtered_df['udise'].nunique()
     
-    # Assessed आणि Not Assessed शाळांची गणना
+    # Assessed आणि Not Assessed शाळांची गणना (UDISE नुसार)
     filtered_df['is_assessed'] = filtered_df[['all reading assesed', 'all writing assesed', 'all numercy assesed', 'all 0peration assesed']].max(axis=1) > 0
-    assessed_schools_count = filtered_df[filtered_df['is_assessed'] == True]['school'].nunique()
-    not_assessed_schools_count = filtered_df[filtered_df['is_assessed'] == False]['school'].nunique()
+    assessed_schools_count = filtered_df[filtered_df['is_assessed'] == True]['udise'].nunique()
+    not_assessed_schools_count = filtered_df[filtered_df['is_assessed'] == False]['udise'].nunique()
     
     # टक्केवारी काढणे
     tot_ra = filtered_df['all reading assesed'].sum()
@@ -87,8 +87,8 @@ if show_data or 'clicked' in st.session_state:
     tot_op_ni = filtered_df['all operation nipun'].sum()
     operation_per = (tot_op_ni / tot_opa * 100) if tot_opa > 0 else 0
 
-    # व्यवस्थापनानुसार शाळांची संख्या
-    zp_count = filtered_df[filtered_df['manag'].str.contains('Zilla Parishad', case=False, na=False)]['school'].nunique()
+    # व्यवस्थापनानुसार शाळांची संख्या (UDISE नुसार)
+    zp_count = filtered_df[filtered_df['manag'].str.contains('Zilla Parishad', case=False, na=False)]['udise'].nunique()
     other_mgmt_count = total_schools - zp_count
 
     # Display Streamlit Metric Cards
@@ -319,43 +319,78 @@ if show_data or 'clicked' in st.session_state:
     </table>
     """
 
-    # --- 🔥 सुधारित सेक्शन १: School Wise Report (iterrows वापरून सुरक्षित रेंडर) ---
-    school_wise_df = filtered_df.copy()
-    school_wise_df = school_wise_df.sort_values(by='all all nipun percentage', ascending=False).reset_index(drop=True)
-    
-    html_content += """
-    <br><hr style="border-top: 2px dashed #cbd5e1;"><br>
-    <h3 style="color: #1e3a8a; text-align: center;">📊 School Wise Report (According All NIPUN Percentage)</h3>
-    <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; border: 1px solid #cbd5e1;">
-        <thead>
-            <tr style="background-color: #1e3a8a; color: white; font-weight: bold;">
-                <th style="padding: 8px; border: 1px solid #cbd5e1;">Sr.No.</th>
-                <th style="padding: 8px; border: 1px solid #cbd5e1;">Block</th>
-                <th style="padding: 8px; border: 1px solid #cbd5e1;">Cluster</th>
-                <th style="padding: 8px; border: 1px solid #cbd5e1;">UDISE Code</th>
-                <th style="padding: 8px; border: 1px solid #cbd5e1;">School Name</th>
-                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">All NIPUN Percentage</th>
-                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">Rank</th>
-            </tr>
-        </thead>
-        <tbody>
-    """
-    # 🎯 FIX: iterrows() वापरल्यामुळे आता spaces असलेल्या कॉलम्सचा एरर येत नाही
-    for idx, row in school_wise_df.iterrows():
+    # --- 🔥 Clusterwise OR Schoolwise Report ---
+    if selected_cluster == "सर्व (All)":
+        report_title = "📊 Cluster Wise Report (According All NIPUN Percentage)"
+        grouped_cluster = filtered_df.groupby(['block', 'cluster']).agg({
+            'all all nipun': 'sum',
+            'all Total Student': 'sum'
+        }).reset_index()
+        grouped_cluster['all all nipun percentage'] = (grouped_cluster['all all nipun'] / grouped_cluster['all Total Student'] * 100).fillna(0)
+        grouped_cluster = grouped_cluster.sort_values(by='all all nipun percentage', ascending=False).reset_index(drop=True)
+        
         html_content += f"""
-            <tr>
-                <td style="padding: 6px; border: 1px solid #cbd5e1;">{idx + 1}</td>
-                <td style="padding: 6px; border: 1px solid #cbd5e1;">{row['block']}</td>
-                <td style="padding: 6px; border: 1px solid #cbd5e1;">{row['cluster']}</td>
-                <td style="padding: 6px; border: 1px solid #cbd5e1;">{row['udise']}</td>
-                <td style="padding: 6px; border: 1px solid #cbd5e1;">{row['school']}</td>
-                <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #1e3a8a;">{row['all all nipun percentage']:.2f}%</td>
-                <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">#{idx + 1}</td>
-            </tr>
+        <br><hr style="border-top: 2px dashed #cbd5e1;"><br>
+        <h3 style="color: #1e3a8a; text-align: center;">{report_title}</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; border: 1px solid #cbd5e1;">
+            <thead>
+                <tr style="background-color: #1e3a8a; color: white; font-weight: bold;">
+                    <th style="padding: 8px; border: 1px solid #cbd5e1;">Sr.No.</th>
+                    <th style="padding: 8px; border: 1px solid #cbd5e1;">Block</th>
+                    <th style="padding: 8px; border: 1px solid #cbd5e1;">Cluster Name</th>
+                    <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">All NIPUN Percentage</th>
+                    <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">Rank</th>
+                </tr>
+            </thead>
+            <tbody>
         """
+        for idx, row in grouped_cluster.iterrows():
+            html_content += f"""
+                <tr>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">{idx + 1}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">{row['block']}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">{row['cluster']}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #1e3a8a;">{row['all all nipun percentage']:.2f}%</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">#{idx + 1}</td>
+                </tr>
+            """
+    else:
+        report_title = f"🏫 School Wise Report for Cluster: {selected_cluster} (According All NIPUN Percentage)"
+        school_wise_df = filtered_df.copy()
+        school_wise_df = school_wise_df.sort_values(by='all all nipun percentage', ascending=False).reset_index(drop=True)
+        
+        html_content += f"""
+        <br><hr style="border-top: 2px dashed #cbd5e1;"><br>
+        <h3 style="color: #1e3a8a; text-align: center;">{report_title}</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; border: 1px solid #cbd5e1;">
+            <thead>
+                <tr style="background-color: #1e3a8a; color: white; font-weight: bold;">
+                    <th style="padding: 8px; border: 1px solid #cbd5e1;">Sr.No.</th>
+                    <th style="padding: 8px; border: 1px solid #cbd5e1;">Block</th>
+                    <th style="padding: 8px; border: 1px solid #cbd5e1;">Cluster</th>
+                    <th style="padding: 8px; border: 1px solid #cbd5e1;">UDISE Code</th>
+                    <th style="padding: 8px; border: 1px solid #cbd5e1;">School Name</th>
+                    <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">All NIPUN Percentage</th>
+                    <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">Rank</th>
+                </tr>
+            </thead>
+            <tbody>
+        """
+        for idx, row in school_wise_df.iterrows():
+            html_content += f"""
+                <tr>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">{idx + 1}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">{row['block']}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">{row['cluster']}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">{row['udise']}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">{row['school']}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #1e3a8a;">{row['all all nipun percentage']:.2f}%</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">#{idx + 1}</td>
+                </tr>
+            """
     html_content += "</tbody></table>"
 
-    # --- 🔥 सुधारित सेक्शन २: Not Assessed School List ---
+    # --- नॉट असेस्ड शाळांची यादी ---
     not_assessed_df = filtered_df[~filtered_df['is_assessed'] & (filtered_df['all Total Student'] > 0)].reset_index(drop=True)
     
     html_content += """
@@ -401,10 +436,8 @@ if show_data or 'clicked' in st.session_state:
     html_content += "</tbody></table>"
     html_content += "</div>"
     
-    # Render HTML component safely
     components.html(html_content, height=2200, scrolling=True)
     
-    # Download HTML Button
     st.sidebar.download_button(
         label="📥 Export to HTML / Print Report",
         data=html_content,
