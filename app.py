@@ -62,10 +62,10 @@ show_data = st.sidebar.button("Show Data", type="primary")
 if show_data or 'clicked' in st.session_state:
     st.session_state['clicked'] = True
     
-    # --- 🎯 गणना दुरुस्ती (Calculations Fixed with UDISE) ---
+    # --- 🎯 गणना (Calculations using Unique UDISE) ---
     total_schools = filtered_df['udise'].nunique()
     
-    # Assessed आणि Not Assessed शाळांची गणना (UDISE नुसार)
+    # Assessed आणि Not Assessed शाळांची संख्या (UDISE वरून अचूक मॅचिंग)
     filtered_df['is_assessed'] = filtered_df[['all reading assesed', 'all writing assesed', 'all numercy assesed', 'all 0peration assesed']].max(axis=1) > 0
     assessed_schools_count = filtered_df[filtered_df['is_assessed'] == True]['udise'].nunique()
     not_assessed_schools_count = filtered_df[filtered_df['is_assessed'] == False]['udise'].nunique()
@@ -102,7 +102,7 @@ if show_data or 'clicked' in st.session_state:
     
     st.write("---")
     
-    # Get School Info if single school is selected
+    # School Info HTML
     school_info_html = ""
     if selected_school != "सर्व (All)" and len(filtered_df) > 0:
         udise_code = filtered_df['udise'].iloc[0]
@@ -185,7 +185,6 @@ if show_data or 'clicked' in st.session_state:
         c_opa = filtered_df[opa_col].sum()
         c_op_ni = filtered_df[op_ni_col].sum()
         c_al_ni = filtered_df[al_ni_col].sum()
-        
         c_per = (c_al_ni / c_to * 100) if c_to > 0 else 0
         
         html_content += f"""
@@ -231,7 +230,6 @@ if show_data or 'clicked' in st.session_state:
         </table>
         """
 
-    # नवीन कोरे २ कोष्टक (पहिली व दुसरी)
     new_tables = [("सन २०२६-२७_इयत्ता पहिली", "जुलै २०२६ (इ. १ ली)"), ("सन २०२६-२७_इयत्ता दुसरी", "जुलै २०२६ (इ. २ री)")]
     for title, j_lbl in new_tables:
         html_content += f"""
@@ -263,7 +261,6 @@ if show_data or 'clicked' in st.session_state:
         </table>
         """
 
-    # अंतिम Summary Table
     tot_all_to = filtered_df['all Total Student'].sum()
     tot_all_ra = filtered_df['all reading assesed'].sum()
     tot_all_r_ni = filtered_df['all reading nipun'].sum()
@@ -319,7 +316,7 @@ if show_data or 'clicked' in st.session_state:
     </table>
     """
 
-    # --- 🔥 Clusterwise OR Schoolwise Report ---
+    # --- 🎯 नियम: लॉजिकनुसार पहिला अहवाल ऑटो-बदल (Clusterwise OR Schoolwise) ---
     if selected_cluster == "सर्व (All)":
         report_title = "📊 Cluster Wise Report (According All NIPUN Percentage)"
         grouped_cluster = filtered_df.groupby(['block', 'cluster']).agg({
